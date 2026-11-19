@@ -52,6 +52,7 @@ vector<Dane> WczytajPlik(const string& nazwa_pliku, int& pojemnosc_tira) {
 
     while (plik >> slowo) {
         if (slowo == "TIME") {
+            getline(plik, slowo); //ZZjada resztę tej linii
             break;
         }
     }
