@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <iomanip>
 #include <chrono>
+#include <fstream>
+#include <string>
 
 using namespace std;
 
@@ -30,6 +32,46 @@ struct Pozycja {
     double x_pos;
     double y_pos;
 };
+
+vector<Dane> WczytajPlik(const string& nazwa_pliku, int& pojemnosc_tira) {
+    ifstream plik(nazwa_pliku);
+    if (!plik.is_open()) {
+        cout << "BLAD: Nie udalo sie otworzyc pliku " << nazwa_pliku << endl;
+        exit(1);
+    }
+
+    string slowo;
+    int liczba_ciezarowek_K = 0;
+
+    while (plik >> slowo) {
+        if (slowo == "CAPACITY") {
+            plik >> liczba_ciezarowek_K >> pojemnosc_tira; //Wczytywanie K i Q
+            break;
+        }
+    }
+
+    while (plik >> slowo) {
+        if (slowo == "TIME") {
+            break;
+        }
+    }
+
+    //Operator >> automatycznie ignoruje puste linie i białe znaki
+    vector<Dane> wczytane_dane;
+    Dane temp;
+    while (plik >> temp.i_customer_nr 
+                >> temp.x_coordinate 
+                >> temp.y_coordinate 
+                >> temp.q_demand 
+                >> temp.e_ready_time 
+                >> temp.l_due_date 
+                >> temp.d_service_time) {
+        wczytane_dane.push_back(temp);
+    }
+
+    plik.close(); 
+    return wczytane_dane;
+}
 
 
 // Sekcja z Zadaniem
@@ -86,7 +128,7 @@ double PointChecker(double droga, double otw2, double zam2, double czk2) {
 //Sekcja z Genetycznym algorytmem
 
 //Generowanie genów
-void GenerateGenome(int wynik[], int ilosc_punktow) {
+void GenerateGenome(vector<int>& wynik, int ilosc_punktow) {
     //Wypełnianie listy numerami od 1 do ilosci punktow
     for (int i = 0; i < ilosc_punktow; i++) {
         wynik[i] = i+1;
@@ -99,17 +141,15 @@ void GenerateGenome(int wynik[], int ilosc_punktow) {
     }
 }
 
-//Template umożliwia dokładnie ustawienie wielkosci populacji
-template <int wiel_pop>
 //Generowanie Populacji czyli listi o danej wielkosci, pełnej list genomów
-void GeneratePopulation(int populacja[][wiel_pop], int wielkosc_populacji, int ile_punktow) {
+void GeneratePopulation(vector<vector<int>>& populacja, int wielkosc_populacji, int ile_punktow) {
     for (int i = 0; i < wielkosc_populacji; i++) {
         GenerateGenome(populacja[i], ile_punktow);
     }
 }
 
 //To są warunki naszego zadania
-WynikiTrasy Fitness(int gen[], int ilosc_punktow, struct Dane lista_danych[], const int miejsce_w_tirze) {
+WynikiTrasy Fitness(const vector<int>& gen, int ilosc_punktow, const vector<Dane>& lista_danych, const int miejsce_w_tirze) {
     struct Pozycja baza_pozycja{lista_danych[0].x_coordinate, lista_danych[0].y_coordinate};
     struct Pozycja nasza_pozycja = baza_pozycja;
 
@@ -133,7 +173,6 @@ WynikiTrasy Fitness(int gen[], int ilosc_punktow, struct Dane lista_danych[], co
         double godzina_z = lista_danych[wskazywacz].l_due_date;
         double ile_czekam = lista_danych[wskazywacz].d_service_time;
 
-        int nr_punktu = lista_danych[wskazywacz].i_customer_nr;
         bool jedzie_do_bazy = Decider(miejsce_w_tirze, zmienne_miejsce_w_tirze, ile_towaru);
 
         if (jedzie_do_bazy == false) {
@@ -167,14 +206,12 @@ WynikiTrasy Fitness(int gen[], int ilosc_punktow, struct Dane lista_danych[], co
     return  {true, liczba_tras, cala_trasa};
 }
 
-//Podobnie do wiel_pop
-template <int wiel_pop2>
 //Wybieranie rodzica do łączenia w parę
-int PickPair(int populacja[][wiel_pop2], int ilosc_populacji, int ilosc_punktow,  int miejsce_w_tirze, struct Dane lista_danych[]) {
+int PickPair(const vector<vector<int>>& populacja, int ilosc_populacji, int ilosc_punktow,  int miejsce_w_tirze, const vector<Dane>& lista_danych) {
     int ile_kandydatow = 4;
 
     //Miesznie jak w genomach
-    int wybrani[ilosc_populacji];
+    vector<int> wybrani(ilosc_populacji);
     for (int i = 0; i < ilosc_populacji; i++) {
         wybrani[i] = i;
     }
@@ -203,7 +240,7 @@ int PickPair(int populacja[][wiel_pop2], int ilosc_populacji, int ilosc_punktow,
 }
 
 //Dzielenie par
-void CutPair(int rodzic1[], int rodzic2[], int potomek[], int ilosc_punktow) {
+void CutPair(const vector<int>& rodzic1, const vector<int>& rodzic2, vector<int>& potomek, int ilosc_punktow) {
     //Wybieranie losowego miejsca do dzielenia
     int punkt_dzielenia = rand() % ilosc_punktow;
 
@@ -233,7 +270,7 @@ void CutPair(int rodzic1[], int rodzic2[], int potomek[], int ilosc_punktow) {
 }
 
 //Mutacja wyniku
-void Mutation(int gen[], int ilosc_punktow, double szansa_mutacji ) {
+void Mutation(vector<int>& gen, int ilosc_punktow, double szansa_mutacji ) {
     //Losowa liczba z przedziału od 0 do 1
     double los = (double)rand() / (double)RAND_MAX;
 
@@ -254,35 +291,28 @@ int main() {
     srand(time(NULL));
 
     //Wartości podane
-    struct Dane lista_danych[] = {
-        {0, 0, 0, 0, 0, 300, 0},
-        {1, 0, 10, 10, 10, 10, 10},
-        {2, 0, 20, 10, 20, 120, 10},
-        {3, 0, 30, 10, 30, 180, 10},
-        {4, 0, 40, 10, 40, 400, 10}
-    };
+    string nazwa_pliku = "m2kvrptw-0.txt"; 
+    int miejsce_w_tirze = 0;      
+    vector<Dane> lista_danych = WczytajPlik(nazwa_pliku, miejsce_w_tirze);
 
-    //Ilość punktów które trzeba odwiedzić
-    constexpr int rozmiar_danych = sizeof(lista_danych) / sizeof(lista_danych[0])-1;
+    //Ilość punktów które trzeba odwiedzić (pomijamy punkt 0, czyli magazyn)
+    int rozmiar_danych = lista_danych.size() - 1; //Dynamiczny rozmiar z wektora
 
     //Można je zmieniać
-    constexpr int miejsce_w_tirze = 40;
     constexpr int ilosc_populacji = 30;
     const int liczba_pokolen = 100;
     const double szansa_mutacji = 0.5;
     const int licznik_braku_zmian = 5;
 
     int zmienny_licznik_braku_zmian = 0;
-    int populacja[ilosc_populacji][rozmiar_danych];
-    int nowa_populacja[ilosc_populacji][rozmiar_danych];
+    vector<vector<int>> populacja(ilosc_populacji, vector<int>(rozmiar_danych));
+    vector<vector<int>> nowa_populacja(ilosc_populacji, vector<int>(rozmiar_danych));
+    vector<int> najlepszy_gen(rozmiar_danych);
 
-    int najlepszy_gen[rozmiar_danych];
     WynikiTrasy najlepszy_wynik_calkowity = {false, 999, 999999999.0f};
 
 
-
-
-    GeneratePopulation<rozmiar_danych>(populacja, ilosc_populacji, rozmiar_danych);
+    GeneratePopulation(populacja, ilosc_populacji, rozmiar_danych);
 
     //Główna pętla
     for (int pokolenie = 0; pokolenie < liczba_pokolen; pokolenie++) {
@@ -301,9 +331,7 @@ int main() {
             if (BetterChecker(wynik, najlepszy_wynik_calkowity) == true) {
                 najlepszy_wynik_calkowity = wynik;
                 czy_poprawiono = true;
-                for (int j = 0; j < rozmiar_danych; j++) {
-                    najlepszy_gen[j] = populacja[i][j];
-                }
+                najlepszy_gen = populacja[i]; //Wektory można kopiować jednym przypisaniem zamiast pętli
             }
         }
         //Przerwa kodu gdy mamy wiele razy tą samą odpowiedź
@@ -319,17 +347,15 @@ int main() {
         }
 
         //Elitaryzm
-        for (int i = 0; i < rozmiar_danych; i++) {
-            nowa_populacja[0][i] = populacja[index_najlepszego][i];
-        }
+        nowa_populacja[0] = populacja[index_najlepszego];
 
         //Tworzenie nowego pokolenia
         for (int i = 1; i < ilosc_populacji; i++) {
-            int index_rodzic1 = PickPair<rozmiar_danych>(populacja, ilosc_populacji, rozmiar_danych, miejsce_w_tirze, lista_danych);
-            int index_rodzic2 = PickPair<rozmiar_danych>(populacja, ilosc_populacji, rozmiar_danych, miejsce_w_tirze, lista_danych);
+            int index_rodzic1 = PickPair(populacja, ilosc_populacji, rozmiar_danych, miejsce_w_tirze, lista_danych);
+            int index_rodzic2 = PickPair(populacja, ilosc_populacji, rozmiar_danych, miejsce_w_tirze, lista_danych);
             int sprawdzacz = 0;
             while (index_rodzic1 == index_rodzic2 && sprawdzacz < 9) {
-                index_rodzic2 = PickPair<rozmiar_danych>(populacja, ilosc_populacji, rozmiar_danych, miejsce_w_tirze, lista_danych);
+                index_rodzic2 = PickPair(populacja, ilosc_populacji, rozmiar_danych, miejsce_w_tirze, lista_danych);
                 sprawdzacz++;
             }
 
@@ -337,17 +363,13 @@ int main() {
             Mutation(nowa_populacja[i], rozmiar_danych, szansa_mutacji);
         }
         //Nadpisanie populcaji
-        for (int i = 0; i < ilosc_populacji; i++) {
-            for (int j = 0; j < rozmiar_danych; j++) {
-                populacja[i][j] = nowa_populacja[i][j];
-            }
-        }
+        populacja = nowa_populacja;
     }
 
 
     //Ostateczne drukowanie wyników
     if (najlepszy_wynik_calkowity.dopuszczalne == false) {
-        printf("Rzadna pojedyncza_trasa nie spelnia okien trasowych\n");
+        printf("Żadna pojedyncza_trasa nie spelnia okien trasowych\n");
     }
     else {
         printf("Liczba tras to: %d\n", najlepszy_wynik_calkowity.liczba_tras);
@@ -358,8 +380,8 @@ int main() {
         //Wypisanie 0 jak jedzie do bazy, podobnie do fitness
         for (int i = 0; i < rozmiar_danych; i++) {
             int wskazywacz = najlepszy_gen[i];
-            int ile_towaru = lista_danych[wskazywacz].q_demand;
 
+            int ile_towaru = lista_danych[wskazywacz].q_demand;
             bool jedzie_do_bazy = Decider(miejsce_w_tirze, zmienne_miejsce_w_tirze, ile_towaru);
 
             if (jedzie_do_bazy == false) {
