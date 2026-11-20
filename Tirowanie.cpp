@@ -60,17 +60,17 @@ vector<Dane> WczytajPlik(const string& nazwa_pliku, int& pojemnosc_tira) {
     //Operator >> automatycznie ignoruje puste linie i białe znaki
     vector<Dane> wczytane_dane;
     Dane temp;
-    while (plik >> temp.i_customer_nr 
-                >> temp.x_coordinate 
-                >> temp.y_coordinate 
-                >> temp.q_demand 
-                >> temp.e_ready_time 
-                >> temp.l_due_date 
+    while (plik >> temp.i_customer_nr
+                >> temp.x_coordinate
+                >> temp.y_coordinate
+                >> temp.q_demand
+                >> temp.e_ready_time
+                >> temp.l_due_date
                 >> temp.d_service_time) {
         wczytane_dane.push_back(temp);
     }
 
-    plik.close(); 
+    plik.close();
     return wczytane_dane;
 }
 
@@ -208,9 +208,7 @@ WynikiTrasy Fitness(const vector<int>& gen, int ilosc_punktow, const vector<Dane
 }
 
 //Wybieranie rodzica do łączenia w parę
-int PickPair(const vector<vector<int>>& populacja, int ilosc_populacji, int ilosc_punktow,  int miejsce_w_tirze, const vector<Dane>& lista_danych) {
-    int ile_kandydatow = 4;
-
+int PickPair(const vector<vector<int>>& populacja, int ilosc_populacji, int ilosc_punktow,  int miejsce_w_tirze, const vector<Dane>& lista_danych, const int ile_kandydatow) {
     //Miesznie jak w genomach
     vector<int> wybrani(ilosc_populacji);
     for (int i = 0; i < ilosc_populacji; i++) {
@@ -292,18 +290,19 @@ int main() {
     srand(time(NULL));
 
     //Wartości podane
-    string nazwa_pliku = "m2kvrptw-0.txt"; 
-    int miejsce_w_tirze = 0;      
+    string nazwa_pliku = "m2kvrptw-0.txt";
+    int miejsce_w_tirze = 0;
     vector<Dane> lista_danych = WczytajPlik(nazwa_pliku, miejsce_w_tirze);
 
     //Ilość punktów które trzeba odwiedzić (pomijamy punkt 0, czyli magazyn)
     int rozmiar_danych = lista_danych.size() - 1; //Dynamiczny rozmiar z wektora
 
     //Można je zmieniać
-    constexpr int ilosc_populacji = 30;
-    const int liczba_pokolen = 100;
+    const int ilosc_populacji = 30;
+    const int liczba_pokolen = 500;
     const double szansa_mutacji = 0.5;
     const int licznik_braku_zmian = 5;
+    const int ile_kandydatow = 4;
 
     int zmienny_licznik_braku_zmian = 0;
     vector<vector<int>> populacja(ilosc_populacji, vector<int>(rozmiar_danych));
@@ -352,11 +351,11 @@ int main() {
 
         //Tworzenie nowego pokolenia
         for (int i = 1; i < ilosc_populacji; i++) {
-            int index_rodzic1 = PickPair(populacja, ilosc_populacji, rozmiar_danych, miejsce_w_tirze, lista_danych);
-            int index_rodzic2 = PickPair(populacja, ilosc_populacji, rozmiar_danych, miejsce_w_tirze, lista_danych);
+            int index_rodzic1 = PickPair(populacja, ilosc_populacji, rozmiar_danych, miejsce_w_tirze, lista_danych, ile_kandydatow);
+            int index_rodzic2 = PickPair(populacja, ilosc_populacji, rozmiar_danych, miejsce_w_tirze, lista_danych, ile_kandydatow);
             int sprawdzacz = 0;
             while (index_rodzic1 == index_rodzic2 && sprawdzacz < 9) {
-                index_rodzic2 = PickPair(populacja, ilosc_populacji, rozmiar_danych, miejsce_w_tirze, lista_danych);
+                index_rodzic2 = PickPair(populacja, ilosc_populacji, rozmiar_danych, miejsce_w_tirze, lista_danych, ile_kandydatow);
                 sprawdzacz++;
             }
 
