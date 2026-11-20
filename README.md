@@ -13,3 +13,8 @@ https://overleaf.put.poznan.pl/5191833375pggszrwyhyvw#4ca6e6
 Q&A:
 Czy w wywniku mamy kilka ciężarówek? Co się dzieje z rodzicami po utworzeniu nowej generacji
 Nie wiem
+
+
+
+
+We are so ducked
